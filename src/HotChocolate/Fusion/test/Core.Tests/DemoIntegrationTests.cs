@@ -2,6 +2,7 @@ using CookieCrumble;
 using HotChocolate.Execution;
 using HotChocolate.Fusion.Composition;
 using HotChocolate.Fusion.Composition.Features;
+using HotChocolate.Fusion.Metadata;
 using HotChocolate.Fusion.Shared;
 using HotChocolate.Skimmed.Serialization;
 using HotChocolate.Types.Relay;
@@ -16,6 +17,116 @@ namespace HotChocolate.Fusion;
 public class DemoIntegrationTests(ITestOutputHelper output)
 {
     private readonly Func<ICompositionLog> _logFactory = () => new TestCompositionLog(output);
+
+    [Fact]
+    public async Task Fetch_Product_With_Entity_Resolver_From_Two_Subgraphs_One_Subgraph_Fails_To_Resolve()
+    {
+        // arrange
+        using var demoProject = await DemoProject.CreateAsync();
+
+        var fusionGraph = await new FusionGraphComposer(logFactory: _logFactory).ComposeAsync(
+            new[]
+            {
+                demoProject.Products.ToConfiguration(ProductsExtensionSdl),
+                demoProject.Reviews.ToConfiguration(ReviewsExtensionSdl),
+            },
+            new FusionFeatureCollection(FusionFeatures.NodeField));
+
+        var executor = await new ServiceCollection()
+            .AddSingleton(demoProject.HttpClientFactory)
+            .AddSingleton(demoProject.WebSocketConnectionFactory)
+            .AddSingleton<IConfigurationRewriter>(new UnreachableSubgraphConfigurationRewriter("Reviews"))
+            .AddFusionGatewayServer()
+            .ConfigureFromDocument(SchemaFormatter.FormatAsDocument(fusionGraph))
+            .BuildRequestExecutorAsync();
+
+        var request = Parse(
+            """
+            query Product {
+              productById(id: "UHJvZHVjdAppMQ==") {
+                # Subgraph: Product
+                name
+                # Subgraph: Reviews
+                reviews {
+                  body
+                }
+              }
+            }
+            """);
+
+        // act
+        await using var result = await executor.ExecuteAsync(
+            QueryRequestBuilder
+                .New()
+                .SetQuery(request)
+                .Create());
+
+        // assert
+        var snapshot = new Snapshot();
+        CollectSnapshotData(snapshot, request, result, fusionGraph);
+        await snapshot.MatchAsync();
+
+        Assert.Null(result.ExpectQueryResult().Errors);
+    }
+
+    [Fact]
+    public async Task Fetch_User_With_Node_Field_From_Two_Subgraphs_One_Subgraph_Fails_To_Resolve()
+    {
+        // arrange
+        using var demoProject = await DemoProject.CreateAsync();
+
+        // act
+        var fusionGraph = await new FusionGraphComposer(logFactory: _logFactory).ComposeAsync(
+            new[]
+            {
+                demoProject.Reviews2.ToConfiguration(Reviews2ExtensionSdl),
+                demoProject.Accounts.ToConfiguration(AccountsExtensionSdl),
+                demoProject.Products.ToConfiguration(ProductsExtensionSdl)
+            },
+            new FusionFeatureCollection(FusionFeatures.NodeField));
+
+        var executor = await new ServiceCollection()
+            .AddSingleton(demoProject.HttpClientFactory)
+            .AddSingleton(demoProject.WebSocketConnectionFactory)
+            .AddSingleton<IConfigurationRewriter>(new UnreachableSubgraphConfigurationRewriter("Accounts"))
+            .AddFusionGatewayServer()
+            .ConfigureFromDocument(SchemaFormatter.FormatAsDocument(fusionGraph))
+            .BuildRequestExecutorAsync();
+
+        var request = Parse(
+            """
+            query FetchNode($id: ID!) {
+                node(id: $id) {
+                    ... on User {
+                        # Subgraph: Accounts
+                        birthdate
+                        # Subgraph: Reviews
+                        reviews {
+                            body
+                        }
+                    }
+                }
+            }
+            """);
+
+        var idSerializer = new IdSerializer();
+        var id = idSerializer.Serialize("User", 1);
+
+        // act
+        await using var result = await executor.ExecuteAsync(
+            QueryRequestBuilder
+                .New()
+                .SetQuery(request)
+                .SetVariableValue("id", id)
+                .Create());
+
+        // assert
+        var snapshot = new Snapshot();
+        CollectSnapshotData(snapshot, request, result, fusionGraph);
+        await snapshot.MatchAsync();
+
+        Assert.Null(result.ExpectQueryResult().Errors);
+    }
 
     [Fact]
     public async Task Authors_And_Reviews_AutoCompose()
@@ -775,7 +886,7 @@ public class DemoIntegrationTests(ITestOutputHelper output)
 
         Assert.Null(result.ExpectQueryResult().Errors);
     }
-    
+
     [Fact]
     public async Task Fetch_User_With_Invalid_Node_Field()
     {
@@ -1667,6 +1778,31 @@ public class DemoIntegrationTests(ITestOutputHelper output)
         Assert.Null(result.ExpectQueryResult().Errors);
     }
 
+    private class UnreachableSubgraphConfigurationRewriter : ConfigurationRewriter
+    {
+        private readonly string[] _unreachableSubgraphs;
+
+        public UnreachableSubgraphConfigurationRewriter(params string[] unreachableSubgraphs)
+        {
+            _unreachableSubgraphs = unreachableSubgraphs;
+        }
+
+        protected override ValueTask<Metadata.HttpClientConfiguration> RewriteAsync(
+            Metadata.HttpClientConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            if (_unreachableSubgraphs.Contains(configuration.ClientName))
+            {
+                // This simulates the subgraph not being reachable.
+                return base.RewriteAsync(
+                    configuration with { EndpointUri = new Uri("http://client") },
+                    cancellationToken);
+            }
+
+            return base.RewriteAsync(configuration, cancellationToken);
+        }
+    }
+
     public sealed class HotReloadConfiguration : IObservable<GatewayConfiguration>
     {
         private GatewayConfiguration _configuration;
@@ -1710,7 +1846,6 @@ public class DemoIntegrationTests(ITestOutputHelper output)
 
             public void Dispose()
             {
-
             }
         }
     }
