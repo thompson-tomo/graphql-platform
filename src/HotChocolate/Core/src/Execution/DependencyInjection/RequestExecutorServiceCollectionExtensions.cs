@@ -21,7 +21,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 public static class RequestExecutorServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds the <see cref="IRequestExecutorResolver"/> and related services
+    /// Adds the <see cref="IRequestExecutorProvider"/> and related services
     /// to the <see cref="IServiceCollection"/>.
     /// </summary>
     /// <param name="services">The <see cref="IServiceCollection"/>.</param>
@@ -102,7 +102,7 @@ public static class RequestExecutorServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Adds the <see cref="IRequestExecutorResolver"/> and related services to the
+    /// Adds the <see cref="IRequestExecutorProvider"/> and related services to the
     /// <see cref="IServiceCollection"/> and configures a named <see cref="IRequestExecutor"/>.
     /// </summary>
     /// <param name="services">
@@ -116,7 +116,7 @@ public static class RequestExecutorServiceCollectionExtensions
     /// </returns>
     public static IRequestExecutorBuilder AddGraphQL(
         this IServiceCollection services,
-        string? schemaName = default)
+        string? schemaName = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -126,7 +126,7 @@ public static class RequestExecutorServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Adds the <see cref="IRequestExecutorResolver"/> and related services to the
+    /// Adds the <see cref="IRequestExecutorProvider"/> and related services to the
     /// <see cref="IServiceCollection"/> and configures a named <see cref="IRequestExecutor"/>.
     /// </summary>
     /// <param name="builder">
@@ -140,7 +140,7 @@ public static class RequestExecutorServiceCollectionExtensions
     /// </returns>
     public static IRequestExecutorBuilder AddGraphQL(
         this IRequestExecutorBuilder builder,
-        string? schemaName = default)
+        string? schemaName = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
 

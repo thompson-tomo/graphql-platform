@@ -339,7 +339,7 @@ public class RavenQueryableTests
     {
         public string? Id { get; set; }
 
-        public string Bar { get; set; } = default!;
+        public string Bar { get; set; } = null!;
     }
 
     private Func<IResolverContext, IRavenQueryable<TResult>> BuildResolver<TResult>(
@@ -424,7 +424,7 @@ public class RavenQueryableTests
                             options: new PagingOptions { IncludeTotalCount = true });
                 })
             .UseRequest(
-                next => async context =>
+                (_, next) => async context =>
                 {
                     await next(context);
                     if (context.ContextData.TryGetValue("query", out var queryString))
@@ -439,7 +439,7 @@ public class RavenQueryableTests
             .UseDefaultPipeline()
             .Services
             .BuildServiceProvider()
-            .GetRequiredService<IRequestExecutorResolver>()
-            .GetRequestExecutorAsync();
+            .GetRequiredService<IRequestExecutorProvider>()
+            .GetExecutorAsync();
     }
 }
