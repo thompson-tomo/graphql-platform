@@ -254,7 +254,7 @@ public class MongoDbCursorPagingFindFluentTests : IClassFixture<MongoResource>
         [BsonGuidRepresentation(GuidRepresentation.Standard)]
         public Guid Id { get; set; } = Guid.NewGuid();
 
-        public string Bar { get; set; } = default!;
+        public string Bar { get; set; } = null!;
     }
 
     private Func<IResolverContext, MongoDbCollectionExecutable<TResult>> BuildResolver<TResult>(
@@ -296,7 +296,7 @@ public class MongoDbCursorPagingFindFluentTests : IClassFixture<MongoResource>
                             options: new PagingOptions { IncludeTotalCount = true });
                 })
             .UseRequest(
-                next => async context =>
+                (_, next) => async context =>
                 {
                     await next(context);
                     if (context.ContextData.TryGetValue("query", out var queryString))
@@ -313,7 +313,7 @@ public class MongoDbCursorPagingFindFluentTests : IClassFixture<MongoResource>
             .UseDefaultPipeline()
             .Services
             .BuildServiceProvider()
-            .GetRequiredService<IRequestExecutorResolver>()
-            .GetRequestExecutorAsync();
+            .GetRequiredService<IRequestExecutorProvider>()
+            .GetExecutorAsync();
     }
 }

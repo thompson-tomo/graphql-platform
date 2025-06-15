@@ -594,8 +594,8 @@ public class QueryableFilterVisitorObjectTests
     {
         // arrange
         var tester = _cache.CreateSchema<Bar, BarFilterInput>(s_barEntities);
-        using var session =
-            tester.Services.GetRootServiceProvider().GetRequiredService<IDocumentStore>().OpenAsyncSession();
+        using var session = tester.Schema.Services.GetRootServiceProvider()
+            .GetRequiredService<IDocumentStore>().OpenAsyncSession();
 
         // act
         var res1 = await tester.ExecuteAsync(
@@ -662,7 +662,7 @@ public class QueryableFilterVisitorObjectTests
     {
         public string? Id { get; set; }
 
-        public Foo Foo { get; set; } = default!;
+        public Foo Foo { get; set; } = null!;
     }
 
     public class BarNullable

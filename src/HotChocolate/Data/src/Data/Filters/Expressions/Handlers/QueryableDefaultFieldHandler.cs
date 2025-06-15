@@ -57,7 +57,7 @@ public class QueryableDefaultFieldHandler
         if (field.Metadata is ExpressionFilterMetadata { Expression: LambdaExpression expression })
         {
             if (expression.Parameters.Count != 1 ||
-                expression.Parameters[0].Type != context.RuntimeTypes.Peek()!.Source)
+                expression.Parameters[0].Type != context.RuntimeTypes.Peek().Source)
             {
                 throw ThrowHelper.QueryableFiltering_ExpressionParameterInvalid(
                     field.RuntimeType.Source,
@@ -179,7 +179,7 @@ public class QueryableDefaultFieldHandler
     }
 }
 
-static file class LocalExtensions
+file static class LocalExtensions
 {
     public static bool TryGetPreviousRuntimeType(
         this QueryableFilterContext context,

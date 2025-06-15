@@ -1,3 +1,6 @@
+using System.Collections.Immutable;
+using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using HotChocolate.Features;
 using HotChocolate.Fusion.Types.Collections;
 using HotChocolate.Fusion.Types.Completion;
@@ -9,7 +12,7 @@ namespace HotChocolate.Fusion.Types;
 
 public sealed class FusionScalarTypeDefinition : IScalarTypeDefinition
 {
-    private FusionDirectiveCollection _directives = default!;
+    private FusionDirectiveCollection _directives = null!;
     private bool _completed;
 
     public FusionScalarTypeDefinition(
